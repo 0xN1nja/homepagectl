@@ -1,3 +1,3 @@
 # homepagectl
 
-Automatically generate gethomepage.dev configs from running Docker containers.
+Generate gethomepage.dev configs from running Docker containers.

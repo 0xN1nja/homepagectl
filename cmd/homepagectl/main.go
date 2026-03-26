@@ -16,7 +16,7 @@ var cfgPath string
 
 var root = &cobra.Command{
 	Use:   "homepagectl",
-	Short: "Automatically generate gethomepage.dev configs from running Docker containers",
+	Short: "Generate gethomepage.dev configs from running Docker containers",
 }
 
 var initCmd = &cobra.Command{
