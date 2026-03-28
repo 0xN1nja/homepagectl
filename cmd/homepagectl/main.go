@@ -93,9 +93,12 @@ var generateCmd = &cobra.Command{
 
 		fmt.Printf("Found %d running container(s).\n", len(containers))
 
-		servicesYAML := generator.Services(cfg, containers)
+		existingServices := readFile(filepath.Join(output, "services.yaml"))
+		existingEnv := readFile(".env")
+
+		servicesYAML := generator.Services(cfg, containers, existingServices)
 		settingsYAML := generator.Settings(cfg)
-		envFile := generator.Env(cfg, containers)
+		envFile := generator.Env(cfg, containers, existingEnv)
 
 		if dryRun {
 			fmt.Println("\n========== services.yaml ==========\n")
@@ -107,22 +110,51 @@ var generateCmd = &cobra.Command{
 			return nil
 		}
 
-		files := map[string]string{
-			"services.yaml": servicesYAML,
-			"settings.yaml": settingsYAML,
-			".env":          envFile,
-		}
-
-		for name, content := range files {
-			path := filepath.Join(output, name)
-			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		svcPath := filepath.Join(output, "services.yaml")
+		if existingServices != "" && !generator.IsManagedFile(existingServices) {
+			if err := backup(svcPath); err != nil {
 				return err
 			}
-			fmt.Println("Written:", path)
+		}
+		if err := writeFile(svcPath, servicesYAML); err != nil {
+			return err
+		}
+
+		if err := writeFile(filepath.Join(output, "settings.yaml"), settingsYAML); err != nil {
+			return err
+		}
+
+		if err := writeFile(".env", envFile); err != nil {
+			return err
 		}
 
 		return nil
 	},
+}
+
+func readFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func backup(path string) error {
+	bakPath := path + ".bak"
+	if err := os.Rename(path, bakPath); err != nil {
+		return fmt.Errorf("failed to backup %s: %w", path, err)
+	}
+	fmt.Printf("Backed up: %s -> %s\n", path, bakPath)
+	return nil
+}
+
+func writeFile(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", path, err)
+	}
+	fmt.Println("Written:", path)
+	return nil
 }
 
 func repeat(s string, n int) string {
@@ -135,7 +167,7 @@ func repeat(s string, n int) string {
 
 func init() {
 	root.PersistentFlags().StringVarP(&cfgPath, "config", "c", "homepagectl.toml", "path to homepagectl.toml")
-	generateCmd.Flags().StringP("output", "o", ".", "output directory for generated files")
+	generateCmd.Flags().StringP("output", "o", ".", "output directory for generated YAML files")
 	generateCmd.Flags().BoolP("dry-run", "d", false, "print to stdout instead of writing files")
 	root.AddCommand(initCmd, listCmd, generateCmd)
 }
