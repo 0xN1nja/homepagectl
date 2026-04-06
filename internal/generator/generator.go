@@ -52,13 +52,15 @@ func freshServices(cfg *config.Config, groups map[string][]docker.Container) str
 	var b strings.Builder
 	b.WriteString(sentinel + "\n\n")
 
-	for _, groupName := range []string{"Services", "Media"} {
-		members, ok := groups[groupName]
-		if !ok {
-			continue
-		}
+	groupNames := make([]string, 0, len(groups))
+	for k := range groups {
+		groupNames = append(groupNames, k)
+	}
+	sort.Strings(groupNames)
+
+	for _, groupName := range groupNames {
 		fmt.Fprintf(&b, "- %s:\n", groupName)
-		for _, c := range members {
+		for _, c := range groups[groupName] {
 			b.WriteString(renderContainer(cfg, c))
 		}
 	}
@@ -314,7 +316,7 @@ func resolveGroup(c docker.Container, cfg *config.Config) string {
 func shouldSkip(name string, skipList []string) bool {
 	lower := strings.ToLower(name)
 	for _, s := range skipList {
-		if strings.HasPrefix(lower, strings.ToLower(s)) || lower == strings.ToLower(s) {
+		if lower == strings.ToLower(s) {
 			return true
 		}
 	}
